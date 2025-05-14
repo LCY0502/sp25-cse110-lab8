@@ -45,6 +45,17 @@ function initializeServiceWorker() {
   // We first must register our ServiceWorker here before any of the code in
   // sw.js is executed.
   // B1. TODO - Check if 'serviceWorker' is supported in the current browser
+  if('servicWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      const sw = navigator.serviceWorker.register('./sw.js')
+      .then((reg)=>{
+        console.log("SW registered successfully: ", reg);
+      })
+      .catch((err)=>{
+        console.log("SW failed to register: ", err);
+      });
+    });
+  }
   // B2. TODO - Listen for the 'load' event on the window object.
   // Steps B3-B6 will be *inside* the event listener's function created in B2
   // B3. TODO - Register './sw.js' as a service worker (The MDN article
@@ -68,6 +79,10 @@ async function getRecipes() {
   // EXPOSE - START (All expose numbers start with A)
   // A1. TODO - Check local storage to see if there are any recipes.
   //            If there are recipes, return them.
+  let recipes = JSON.parse(localStorage.getItem("recipes"));
+  if(recipes !== null && recipes.length != 0){
+    return recipes;
+  }
   /**************************/
   // The rest of this method will be concerned with requesting the recipes
   // from the network
@@ -78,6 +93,31 @@ async function getRecipes() {
   //            take two parameters - resolve, and reject. These are functions
   //            you can call to either resolve the Promise or Reject it.
   /**************************/
+  recipes = [];
+  
+  const myPromise = new Promise(async (resolve, reject) => {
+    for(const url of RECIPE_URLS)try{
+      const recipe = await fetch(url).then(response=> response.json());
+      recipes.push(recipe);
+    }catch(err){
+      console.error(err);
+      reject(err);
+      break;
+    }
+
+    if (recipes.length === RECIPE_URLS.length) {
+      saveRecipesToStorage(recipes);
+      resolve(recipes);
+    }
+  });
+  
+
+  await myPromise.then((recipe)=>{
+    console.log(`getRecipes Sucess: recieve total of ${recipes.length} recipes`);
+  }).catch((err)=>{
+    console.log(`Error: ${err}`);
+  });
+  return recipes;
   // A4-A11 will all be *inside* the callback function we passed to the Promise
   // we're returning
   /**************************/
@@ -100,6 +140,7 @@ async function getRecipes() {
   //            resolve() method.
   // A10. TODO - Log any errors from catch using console.error
   // A11. TODO - Pass any errors to the Promise's reject() function
+
 }
 
 /**
